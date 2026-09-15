@@ -8,6 +8,13 @@ Runtime components are installed or reused separately, retaining their licenses:
 - transcribe-cpp 0.2.2: MIT
 - @picovoice/pvrecorder-node 1.2.9: Apache-2.0
 - @lydell/node-pty 1.2.0-beta.15: MIT
+- sherpa-onnx-node 1.13.8: Apache-2.0
 
-Model weights are not bundled. Each Hugging Face model repository defines its
+Speech voices are Piper models distributed by the sherpa-onnx project:
+https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models
+Their upstream MODEL_CARD and espeak-ng data remain in the downloaded archive.
+The default Siwis model card credits the SIWIS dataset (CC-BY 4.0):
+https://datashare.is.ed.ac.uk/handle/10283/2353
+
+Model weights are not bundled. Each upstream model repository defines its
 own license. Models are downloaded only after confirmation or with --yes.

@@ -66,6 +66,21 @@ service. It starts automatically at login, reuses the shared model, and does not
 need a cloud account or API key. Uploaded WAV audio is decoded/resampled in
 memory, never saved. No new microphone library is needed for GooeyPi.
 
+The **upstream realtime orb is separate**: it still requires OpenAI. Agent Voice
+alone does not change that orb or replace GooeyPi; a patched build is required.
+The adapted GooeyPi Agent Voice build instead
+sends spoken turns through the selected agent's normal session and reads its
+replies locally. It keeps the session, model, history and tools; it does not
+create another agent. Pause to send a turn, mute to discard a recording or stop
+playback, and close the orb to release the microphone. Switching sessions closes
+it automatically. Your agent's usual provider still receives the transcribed
+text; local audio does not make a cloud agent offline.
+
+GooeyPi installation also prepares local speech (sherpa-onnx/Piper): the default
+French Siwis voice is a ~64 MiB verified download, reused thereafter. Use
+`agent-voice voices` to list voices and `agent-voice install gooeypi --voice en_US-amy-low`
+to choose English instead. No speech weights are bundled with either application.
+
 `agent-voice uninstall gooeypi`, with GooeyPi closed, removes the service and
 restores the previous voice settings, preserving intervening user changes and
 all shared components. `AGENT_VOICE_GOOEYPI_DIR` can identify a nonstandard
@@ -88,7 +103,11 @@ automatically: their installers must implement this connection. Only the GooeyPi
 connection needs a background service. It accepts WAV multipart uploads at its
 private base URL plus `/audio/transcriptions`, with `model=agent-voice` and a
 JSON `{text}` response. Requests are limited to 25 MiB and 90 seconds; only one
-transcription is accepted at a time. Browser-origin requests are rejected.
+audio request is accepted at a time. Browser-origin requests are rejected.
+`GET /voices` reports the installed voice; `POST /audio/speech` accepts JSON
+`{model:"agent-voice", input:"Text to read", response_format:"wav"}` and returns
+PCM16 WAV. Speech input is limited to 1,200 characters. Disconnecting cancels
+processing. All endpoints use the same private base URL.
 
 ## Settings and diagnostics
 

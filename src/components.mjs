@@ -11,6 +11,7 @@ export const COMPONENTS = Object.freeze({
   engine: { name: 'transcribe-cpp', version: '0.2.2' },
   microphone: { name: '@picovoice/pvrecorder-node', version: '1.2.9' },
   terminal: { name: '@lydell/node-pty', version: '1.2.0-beta.15' },
+  speech: { name: 'sherpa-onnx-node', version: '1.13.8' },
 });
 
 async function compatible(root, spec) {

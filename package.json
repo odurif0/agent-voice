@@ -1,20 +1,46 @@
 {
   "name": "agent-voice",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Local voice dictation shared by Forge Code, Pi and GooeyPi",
   "type": "module",
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/odurif0/agent-voice.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/odurif0/agent-voice.git"
+  },
   "bugs": "https://github.com/odurif0/agent-voice/issues",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "bin": {
     "agent-voice": "bin/launch.sh",
     "forge-voice": "bin/launch.sh"
   },
-  "exports": { ".": "./src/index.mjs", "./pi": "./pi/index.ts" },
-  "files": ["bin", "src", "pi", "zsh", "install.sh", "README.md", "LICENSE", "NOTICE"],
-  "keywords": ["pi-package", "forgecode", "dictation", "speech-to-text"],
-  "pi": { "extensions": ["./pi/index.ts"] },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./pi": "./pi/index.ts"
+  },
+  "files": [
+    "bin",
+    "src",
+    "pi",
+    "zsh",
+    "install.sh",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "keywords": [
+    "pi-package",
+    "forgecode",
+    "dictation",
+    "speech-to-text"
+  ],
+  "pi": {
+    "extensions": [
+      "./pi/index.ts"
+    ]
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "test:native": "node test/native.mjs",

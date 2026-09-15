@@ -5,6 +5,7 @@ import { readJson } from './storage.mjs';
 import { readSettings, validModel } from './models.mjs';
 import { decodeWav } from './file-audio.mjs';
 import { transcribePcm } from './dictation.mjs';
+import { MAX_SPEECH_TEXT, synthesizeSpeech, readSpeechSettings, validVoice } from './speech.mjs';
 
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 export const SERVER_MODEL = 'agent-voice';
@@ -36,7 +37,7 @@ function readBody(request, maxBytes, signal) {
     const abort = () => error(signal.reason);
     const data = chunk => {
       size += chunk.length;
-      if (size > maxBytes) error(failure(413, 'Audio upload exceeds 25 MiB.'));
+      if (size > maxBytes) error(failure(413, 'Request exceeds its size limit.'));
       else chunks.push(chunk);
     };
     const end = () => { cleanup(); resolve(Buffer.concat(chunks)); };
@@ -54,6 +55,8 @@ export async function createTranscriptionServer({
   port = 0, token, locations = paths(), settings = () => readSettings(locations),
   decode = decodeWav, transcribe = transcribePcm, timeout = 90_000,
   maxAudioBytes = MAX_AUDIO_BYTES, onError = () => {},
+  synthesize = synthesizeSpeech,
+  availableVoice = async () => { const config = await readSpeechSettings(locations); return await validVoice(config) ? config.voice : undefined; },
 } = {}) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw new Error('A private server token is required.');
   const prefix = `/${token}/v1`, controllers = new Set(), pending = new Set();
@@ -73,7 +76,15 @@ export async function createTranscriptionServer({
     if (request.method === 'GET' && request.url === `${prefix}/models`) {
       reply(response, 200, { object: 'list', data: [{ id: SERVER_MODEL, object: 'model', owned_by: 'agent-voice' }] }); return;
     }
-    if (request.url !== `${prefix}/audio/transcriptions`) {
+    if (request.method === 'GET' && request.url === `${prefix}/voices`) {
+      try {
+        const id = await availableVoice();
+        reply(response, 200, { object: 'list', data: id ? [{ id, object: 'voice', owned_by: 'agent-voice' }] : [] });
+      } catch { reply(response, 503, { error: { message: 'Local speech voice is unavailable.' } }); }
+      return;
+    }
+    const speech = request.url === `${prefix}/audio/speech`;
+    if (!speech && request.url !== `${prefix}/audio/transcriptions`) {
       reply(response, 404, { error: { message: 'Not found.' } }); return;
     }
     if (request.method !== 'POST') { reply(response, 405, { error: { message: 'Use POST.' } }); return; }
@@ -87,6 +98,26 @@ export async function createTranscriptionServer({
     timer.unref();
     try {
       const type = request.headers['content-type'] || '';
+      if (speech) {
+        if (!/^application\/json(?:\s*;|$)/i.test(type)) throw failure(415, 'Use application/json for speech.');
+        const body = await readBody(request, 8192, signal);
+        let payload;
+        try { payload = JSON.parse(body.toString('utf8')); } catch { throw failure(400, 'Invalid speech JSON.'); }
+        if (!payload || Array.isArray(payload) || typeof payload !== 'object'
+          || Object.keys(payload).some(key => !['model', 'input', 'response_format'].includes(key))
+          || (payload.model !== undefined && payload.model !== SERVER_MODEL)
+          || (payload.response_format !== undefined && payload.response_format !== 'wav')
+          || typeof payload.input !== 'string' || !payload.input.trim() || payload.input.length > MAX_SPEECH_TEXT
+          || payload.input.includes('\0')) throw failure(400, 'Invalid speech request. Use agent-voice, plain text and WAV.');
+        if (!await availableVoice()) throw failure(503, 'Install a local speech voice with agent-voice install gooeypi --yes.');
+        const wav = await synthesize(payload.input, { locations, signal });
+        signal.throwIfAborted();
+        if (!response.destroyed) {
+          response.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': wav.length, 'Cache-Control': 'no-store', Connection: 'close' });
+          response.end(wav);
+        }
+        return;
+      }
       if (!/^multipart\/form-data\s*;/i.test(type)) throw failure(415, 'Use multipart/form-data with a WAV file.');
       if (Number(request.headers['content-length']) > maxAudioBytes + 65_536) throw failure(413, 'Audio upload exceeds 25 MiB.');
       const body = await readBody(request, maxAudioBytes + 65_536, signal);
@@ -124,7 +155,7 @@ export async function createTranscriptionServer({
     } catch (error) {
       const status = signal.aborted && signal.reason?.status ? signal.reason.status : error.status || 500;
       if (status === 500) { try { onError(error); } catch {} }
-      reply(response, status, { error: { message: status === 500 ? 'Local transcription failed. Run agent-voice doctor.' : (signal.aborted ? signal.reason.message : error.message) } });
+      reply(response, status, { error: { message: status === 500 ? 'Local voice processing failed. Run agent-voice doctor.' : (signal.aborted ? signal.reason.message : error.message) } });
     } finally {
       clearTimeout(timer); response.off('close', cancel); controllers.delete(controller); busy = false;
     }
@@ -153,7 +184,7 @@ export async function serve({ locations = paths(), signal } = {}) {
   const settings = await readSettings(locations);
   if (!settings || !await validModel(settings.model.path)) throw new Error('Run agent-voice setup before starting the service.');
   const server = await createTranscriptionServer({ ...config, locations });
-  process.stderr.write('Agent Voice transcription service ready on loopback.\n');
+  process.stderr.write('Agent Voice local audio service ready on loopback.\n');
   await new Promise(resolve => {
     const stop = () => { signal?.removeEventListener('abort', stop); process.off('SIGINT', stop); process.off('SIGTERM', stop); resolve(); };
     process.once('SIGINT', stop); process.once('SIGTERM', stop); signal?.addEventListener('abort', stop, { once: true });

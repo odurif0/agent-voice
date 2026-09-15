@@ -5,3 +5,4 @@ export { Dictation, transcribePcm } from './dictation.mjs';
 export { microphones } from './audio.mjs';
 export { decodeFile, decodeWav } from './file-audio.mjs';
 export { createTranscriptionServer } from './server.mjs';
+export { VOICES, ensureSpeech, synthesizeSpeech } from './speech.mjs';
