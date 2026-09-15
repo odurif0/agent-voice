@@ -10,13 +10,14 @@ import { installPi, uninstallPi } from './install-pi.mjs';
 import { runForge, passthrough } from './forge.mjs';
 import { SHORTCUTS } from './terminal-input.mjs';
 import { installZsh, uninstallZsh, zshStatus } from './install-zsh.mjs';
+import { checkGooeyPi, installGooeyPi, uninstallGooeyPi, gooeyPiStatus } from './install-gooeypi.mjs';
 
-const help = `agent-voice: shared local dictation\n\n  forge-voice [Forge arguments]       Launch Forge with dictation\n  agent-voice install forge|pi        Install the integration and its components\n  agent-voice uninstall forge|pi      Remove the integration, keep the models\n  agent-voice setup                   Configure the model, language or shortcut\n    --model <id|file.gguf>            --language auto|en|fr\n    --shortcut ctrl+alt+z|f2           --microphone <index>\n    --yes                            Allow the model download\n  agent-voice models                  List available models\n  agent-voice microphones             List available microphones\n  agent-voice doctor                  Check shared resources\n  agent-voice transcribe <file>       Transcribe a file (requires FFmpeg)\n  agent-voice run -- <agent> [args]    Run a compatible terminal agent unchanged\n\nDictation: Ctrl+Alt+Z to start/stop, Esc to cancel.\nIn Zsh/Forge: Enter also stops dictation; press it again after transcription to submit.\n`;
+const help = `agent-voice: shared local dictation\n\n  forge-voice [Forge arguments]       Launch Forge with dictation\n  agent-voice install <target>        Install forge, pi or gooeypi\n  agent-voice uninstall <target>      Remove the integration, keep the models\n  agent-voice serve                   Run the managed local transcription service\n  agent-voice setup                   Configure the model, language or shortcut\n    --model <id|file.gguf>            --language auto|en|fr\n    --shortcut ctrl+alt+z|f2           --microphone <index>\n    --yes                            Allow the model download\n  agent-voice models                  List available models\n  agent-voice microphones             List available microphones\n  agent-voice doctor                  Check shared resources\n  agent-voice transcribe <file>       Transcribe a file (requires FFmpeg)\n  agent-voice run -- <agent> [args]    Run a compatible terminal agent unchanged\n\nDictation: Ctrl+Alt+Z to start/stop, Esc to cancel.\nIn Zsh/Forge: Enter also stops dictation; press it again after transcription to submit.\n`;
 
-export async function prepare({ terminal = false, ...options } = {}) {
+export async function prepare({ terminal = false, microphoneComponent = true, ...options } = {}) {
   const onStatus = options.onStatus || (text => process.stderr.write(`${text}\n`));
   const settings = await ensureSettings({ ...options, onStatus });
-  for (const id of ['engine', 'microphone', ...(terminal ? ['terminal'] : [])]) await ensureComponent(id, { ...options, onStatus });
+  for (const id of ['engine', ...(microphoneComponent ? ['microphone'] : []), ...(terminal ? ['terminal'] : [])]) await ensureComponent(id, { ...options, onStatus });
   return settings;
 }
 
@@ -30,7 +31,11 @@ async function confirmDownload(model) {
 export async function main(argv) {
   const [command = 'help', ...args] = argv;
   if (['help', '--help', '-h'].includes(command)) { console.log(help); return; }
-  if (command === '--version') { console.log('agent-voice 0.3.0'); return; }
+  if (command === '--version') { console.log('agent-voice 0.4.0'); return; }
+  if (command === 'serve') {
+    if (args.length) throw new Error('The service uses its installed local configuration; no listen overrides are allowed.');
+    return (await import('./server.mjs')).serve();
+  }
   if (command === 'zsh-keys') {
     const settings = await readSettings();
     if (!settings || !SHORTCUTS[settings.shortcut]) throw new Error('Voice settings unavailable.');
@@ -72,9 +77,10 @@ export async function main(argv) {
     const p = paths(), settings = await readSettings(p);
     console.log(`Shared resources: ${p.root}\nHugging Face cache: ${p.hf}`);
     let ok = true;
+    const gooey = await gooeyPiStatus(p);
     for (const [id, spec] of Object.entries(COMPONENTS)) {
       const found = await discoverComponent(id);
-      if (!found) { console.log(`${id}: missing (${spec.name})`); if (id !== 'terminal') ok = false; continue; }
+      if (!found) { console.log(`${id}: missing (${spec.name})`); if (id === 'engine' || (id === 'microphone' && !gooey)) ok = false; continue; }
       try {
         const module = await loadComponent(id);
         if (id === 'engine') module.version();
@@ -89,6 +95,10 @@ export async function main(argv) {
       console.log(`Zsh${zsh.pluginLink ? ' / Oh My Zsh' : ''}: ${zsh.valid ? 'ready' : 'incomplete installation'} (${zsh.rc})`);
       if (!zsh.valid) ok = false;
     }
+    if (gooey) {
+      console.log(`GooeyPi: ${gooey.valid ? 'ready (local service)' : 'incomplete integration or stopped service'}`);
+      if (!gooey.valid) ok = false;
+    }
     return ok && valid ? 0 : 1;
   }
   if (command === 'transcribe') {
@@ -98,8 +108,10 @@ export async function main(argv) {
     console.log(await transcribePcm(settings, await decodeFile(args[0]))); return;
   }
   if (command === 'uninstall') {
-    if (args.length !== 1 || !['forge', 'pi'].includes(args[0])) throw new Error('Choose "uninstall forge" or "uninstall pi".');
-    if (args[0] === 'pi') {
+    if (args.length !== 1 || !['forge', 'pi', 'gooeypi'].includes(args[0])) throw new Error('Choose "uninstall forge", "uninstall pi" or "uninstall gooeypi".');
+    if (args[0] === 'gooeypi') {
+      await uninstallGooeyPi(); console.log('GooeyPi integration and local service removed. Shared resources preserved.');
+    } else if (args[0] === 'pi') {
       await uninstallPi(); console.log('Pi integration removed. Shared resources preserved.');
     } else {
       await uninstallZsh(); console.log('Zsh integration removed for future terminals. Shared resources preserved.');
@@ -108,7 +120,8 @@ export async function main(argv) {
   }
   if (command === 'setup' || command === 'install') {
     const target = command === 'install' ? args.shift() : undefined;
-    if (command === 'install' && !['forge', 'pi'].includes(target)) throw new Error('Choose "install forge" or "install pi".');
+    if (command === 'install' && !['forge', 'pi', 'gooeypi'].includes(target)) throw new Error('Choose "install forge", "install pi" or "install gooeypi".');
+    if (target === 'gooeypi') await checkGooeyPi();
     const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
       model: { type: 'string' }, language: { type: 'string' }, shortcut: { type: 'string' },
       microphone: { type: 'string' }, yes: { type: 'boolean', default: false },
@@ -121,11 +134,13 @@ export async function main(argv) {
       if (!Number.isInteger(index) || index < -1 || index >= names.length) throw new Error('Invalid microphone index.');
       microphone = index === -1 ? { type: 'system-default' } : { type: 'device', name: names[index], occurrence: names.slice(0, index).filter(n => n === names[index]).length };
     }
-    const settings = await prepare({ ...values, microphone, terminal: target === 'forge', confirmDownload: values.yes ? async () => true : confirmDownload });
+    const settings = await prepare({ ...values, microphone, terminal: target === 'forge', microphoneComponent: target !== 'gooeypi', confirmDownload: values.yes ? async () => true : confirmDownload });
     if (target === 'pi') await installPi();
+    if (target === 'gooeypi') await installGooeyPi();
     const zsh = target === 'forge' ? await installZsh() : undefined;
     console.log(`Ready: ${settings.model.id} · ${settings.language} · ${settings.shortcut}`);
     if (target === 'pi') console.log('Pi integration enabled. Run /reload in Pi.');
+    if (target === 'gooeypi') console.log('GooeyPi dictation enabled. Open GooeyPi and use its microphone button. The local service starts automatically at login.');
     if (target === 'forge') console.log(zsh.installed
       ? `${zsh.ohMyZsh ? 'Oh My Zsh' : 'Zsh'} integration enabled for new terminals: dictate at the prompt or launch forge normally.`
       : 'No Zsh shell detected. Run forge-voice instead of forge.');

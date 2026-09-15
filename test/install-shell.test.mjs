@@ -81,7 +81,7 @@ if (process.env.TEST_INSTALL_FAIL === '1') process.exit(17);
 test('Local installer: reuse existing Node, preserve arguments and paths with apostrophes', async t => {
   const f = await fixture(t), args = ['--yes', '--model', "/a user's test model.gguf"];
   const result = await f.run(['all', ...args]); assert.equal(result.code, 0, result.output);
-  assert.deepEqual((await f.records()).map(x => x.args), [['install', 'forge', ...args], ['install', 'pi', ...args]]);
+  assert.deepEqual((await f.records()).map(x => x.args), [['install', 'gooeypi', ...args], ['install', 'forge', ...args], ['install', 'pi', ...args]]);
   assert.equal((await f.records())[0].bin, join(f.prefix, 'bin'));
   assert.deepEqual(await f.downloads(), []);
   await assert.rejects(lstat(join(f.prefix, 'lib/node_modules/agent-voice/.node-runtime')), { code: 'ENOENT' });

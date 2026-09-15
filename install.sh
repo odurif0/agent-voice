@@ -5,9 +5,9 @@ main() (
     set -eu
     target=${1:-forge}
     case "$target" in
-        -h|--help) echo 'Usage: install.sh [forge|pi|all] [--yes] [setup options]'; exit 0 ;;
-        forge|pi|all) ;;
-        *) echo 'Choose forge, pi or all.' >&2; exit 2 ;;
+        -h|--help) echo 'Usage: install.sh [forge|pi|gooeypi|all] [--yes] [setup options]'; exit 0 ;;
+        forge|pi|gooeypi|all) ;;
+        *) echo 'Choose forge, pi, gooeypi or all.' >&2; exit 2 ;;
     esac
     if [ "$#" -gt 0 ]; then shift; fi
     fail() { printf 'agent-voice: %s\n' "$*" >&2; exit 1; }
@@ -84,6 +84,8 @@ main() (
     # Let Zsh make the new commands available, without changing which existing
     # programs take precedence in PATH. The line is removed with our own block.
     export AGENT_VOICE_BIN_DIR="$prefix/bin"
+    # Check the closed-app requirement before altering Forge/Pi in an all install.
+    if [ "$target" = gooeypi ] || [ "$target" = all ]; then "$prefix/bin/agent-voice" install gooeypi "$@"; fi
     if [ "$target" = forge ] || [ "$target" = all ]; then "$prefix/bin/agent-voice" install forge "$@"; fi
     if [ "$target" = pi ] || [ "$target" = all ]; then "$prefix/bin/agent-voice" install pi "$@"; fi
     case ":$PATH:" in *":$prefix/bin:"*) ;; *) printf '\nCommands installed in %s/bin.\nIn Zsh, open a new terminal; otherwise use: %s/bin/forge-voice\n' "$prefix" "$prefix" ;; esac

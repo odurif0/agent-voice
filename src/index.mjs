@@ -3,4 +3,5 @@ export { COMPONENTS, ensureComponent, discoverComponent, registerInstallation, l
 export { CATALOG, DEFAULT_MODEL, ensureSettings, readSettings } from './models.mjs';
 export { Dictation, transcribePcm } from './dictation.mjs';
 export { microphones } from './audio.mjs';
-export { decodeFile } from './file-audio.mjs';
+export { decodeFile, decodeWav } from './file-audio.mjs';
+export { createTranscriptionServer } from './server.mjs';

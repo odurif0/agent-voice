@@ -10,6 +10,7 @@ import xterm from '@xterm/headless';
 import espeak from '@echogarden/espeak-ng-emscripten';
 import { checkJobControl } from './job-control.mjs';
 import { checkZsh } from './zsh-native.mjs';
+import { checkHttp } from './http-native.mjs';
 import { paths } from '../src/paths.mjs';
 import { readSettings } from '../src/models.mjs';
 import { ensureComponent, loadComponent } from '../src/components.mjs';
@@ -110,6 +111,7 @@ try {
       child.kill(); await sleep(400); terminal.dispose(); active = undefined;
     }
   }
+  await checkHttp({ locations: p, packageRoot, audioPath, phrase });
   await checkZsh({ pty, root, env, packageRoot, play, phrase });
   await exercise('forge', process.execPath, [join(packageRoot, 'bin', 'forge-voice.mjs')], '\r\n');
   await checkJobControl({ pty, root, env, packageRoot });
