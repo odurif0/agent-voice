@@ -1,0 +1,13 @@
+The model catalogue (src/catalog.json) and the microphone/backend integration
+are derived from, or informed by, pi-transcribe:
+https://github.com/earendil-works/pi-transcribe
+Revision: 35852fccee08db47564cf11c0182239c858f0fa2
+Copyright (c) 2026 Earendil Works contributors. MIT License (see LICENSE).
+
+Runtime components are installed or reused separately, retaining their licenses:
+- transcribe-cpp 0.2.2: MIT
+- @picovoice/pvrecorder-node 1.2.9: Apache-2.0
+- @lydell/node-pty 1.2.0-beta.15: MIT
+
+Model weights are not bundled. Each Hugging Face model repository defines its
+own license. Models are downloaded only after confirmation or with --yes.

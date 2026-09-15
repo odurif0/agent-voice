@@ -1,0 +1,27 @@
+{
+  "name": "agent-voice",
+  "version": "0.3.0",
+  "description": "Local voice dictation shared by Forge Code, Pi and terminal agents",
+  "type": "module",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/odurif0/agent-voice.git" },
+  "bugs": "https://github.com/odurif0/agent-voice/issues",
+  "engines": { "node": ">=22" },
+  "bin": {
+    "agent-voice": "bin/launch.sh",
+    "forge-voice": "bin/launch.sh"
+  },
+  "exports": { ".": "./src/index.mjs", "./pi": "./pi/index.ts" },
+  "files": ["bin", "src", "pi", "zsh", "install.sh", "README.md", "LICENSE", "NOTICE"],
+  "keywords": ["pi-package", "forgecode", "dictation", "speech-to-text"],
+  "pi": { "extensions": ["./pi/index.ts"] },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:native": "node test/native.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "devDependencies": {
+    "@xterm/headless": "6.0.0",
+    "@echogarden/espeak-ng-emscripten": "0.3.5"
+  }
+}
