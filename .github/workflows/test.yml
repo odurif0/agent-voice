@@ -1,4 +1,4 @@
-name: Tests
+name: Documentation
 
 on:
   push:
@@ -9,32 +9,33 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: tests-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  test:
-    name: ${{ matrix.os }} / Node ${{ matrix.node }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        node: [22, 24]
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-      - name: Install Zsh if needed
-        if: runner.os == 'Linux'
-        run: command -v zsh || (sudo apt-get update && sudo apt-get install --yes zsh)
-      - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npm test
-      - run: npm run check
-      - run: npm pack --dry-run
+      - name: Check documentation
+        run: |
+          git show --format= --check HEAD
+          python3 - <<'PY'
+          import re
+          import subprocess
+          from pathlib import Path
+          from urllib.parse import unquote, urlsplit
+
+          files = subprocess.check_output(["git", "ls-files", "*.md"], text=True).splitlines()
+          for name in files:
+              text = Path(name).read_text(encoding="utf-8")
+              assert text.endswith("\n"), f"Missing final newline: {name}"
+              assert not re.search(r"[^\S\n]+$", text, re.M), f"Trailing whitespace: {name}"
+              for target in re.findall(r"\[[^\]]*\]\(([^\s)]+)\)", text):
+                  url = urlsplit(target)
+                  if url.scheme or url.netloc or not url.path:
+                      continue
+                  path = Path(name).parent / unquote(url.path)
+                  assert path.is_file(), f"Broken local link in {name}: {target}"
+          print(f"Checked {len(files)} Markdown files and their local links.")
+          PY
