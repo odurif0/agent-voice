@@ -1,34 +1,33 @@
 # Agent Voice
 
-A method for a coding agent to install voice support in an existing agent harness
-(the application that runs your agent). It adapts to the application, its version
-and the machine, rather than imposing one installer.
+Ask your coding agent to add voice to the harness you are using (the application
+that runs your agent). It inspects the application and machine, reuses compatible
+audio components already installed, and selects state-of-the-art speech
+recognition suited to your hardware and language.
 
 ## Use
 
-Give your coding agent this request, replacing the brackets:
+Give your agent this request:
 
-> Read https://github.com/odurif0/agent-voice/blob/main/METHOD.md and follow its
-> installation method to add [dictation / spoken conversation] to [my harness].
-> Inspect my existing setup, reuse compatible components, and propose the changes
-> before applying them. Perform the installation and verify it in the application.
+> Read https://github.com/odurif0/agent-voice/blob/main/METHOD.md and follow it to
+> install voice support in the harness we're using.
 
-The [method](METHOD.md) covers discovery, implementation, verification and removal.
-[Forge Code](examples/forge.md) and [GooeyPi](examples/gooeypi.md) are separate
-examples, not a list of supported applications or a combined installation.
+The method covers dictation, spoken conversation or both according to your
+request. The agent asks only for unresolved choices, proposes changes for
+approval, then installs and tests the result where the application allows it.
+Speech processing is local by default; the agent's model provider may still
+receive the transcribed text.
 
-This repository contains instructions, not an installable package. A local voice
-backend can be shared; each harness integration remains independent. Local audio
-processing does not make an agent that uses a cloud model offline.
+This repository contains [instructions](METHOD.md), not an installable package.
+Audio components can be shared between harnesses; their integrations stay
+independent. [Forge Code](examples/forge.md) and [GooeyPi](examples/gooeypi.md)
+illustrate application-specific decisions, not a fixed list of supported apps.
 
 ## Existing installations
 
-The former implementation is preserved at [v0.5.0](https://github.com/odurif0/agent-voice/tree/v0.5.0)
-for reference. It is not the default installation path for this method, and
-this branch does not provide a newer runtime release.
-The old `main/install.sh` command no longer applies. Do not pull this
-documentation-only branch into a checkout used by a running service or plugin;
-read the method separately. Updating that runtime is a separate approved change
-using actual runtime code, with its own tests and rollback.
+The former runtime remains at [v0.5.0](https://github.com/odurif0/agent-voice/tree/v0.5.0).
+This documentation-only branch is not a runtime update: do not pull it into a
+working service or plugin checkout, or use the former `main/install.sh` command.
+Updating an existing runtime requires a separate approved change, tests and rollback.
 
 [MIT license](LICENSE). [Attribution](NOTICE).
